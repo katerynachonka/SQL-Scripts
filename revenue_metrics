@@ -1,6 +1,6 @@
 -- task: calculate various revenue metrics
--- data sources: games_payments - contains payment information
-			  -- games_paid_users - contains user information
+-- data sources(tables): games_payments - contains payment information
+	        	 games_paid_users - contains user information
 
 -- create CTE to calculate monthly revenue for each user by game
 with monthly_revenue as (

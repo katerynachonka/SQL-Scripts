@@ -1,0 +1,64 @@
+-- Select the names and salaries of all employees who earn more than 50,000.
+
+select name, salary
+from employees 
+where salary > 50000;
+
+
+-- Show the total number of employees in each department and the average salary.
+
+select department_id, 
+	 count (employee_id) as count_employees,
+	 avg (salary) as avg_salary
+from employees 
+group by department_id;
+
+
+-- Output the total sum of salaries in each department and sort in descending order.
+
+select e.department_id, 
+	 d.dapartment_name,
+	 sum(salary) as total_salary
+from employees e
+join departments d using (department_id)
+group by e.department_id, d.dapartment_name
+order by total_salary desc;
+
+
+-- Show the top 3 departments with the highest average salary.
+
+select e.department_id,
+	d.department_name,
+            avg(e.salary) as avg_salary
+from employees e 
+join departments d using (department_id)
+group by e.department_id, d.department_name
+order by avg_salary desc
+limit 3;
+
+
+-- Show the name of the department with the second highest average salary.
+
+select e.department_id,
+	 d.department_name,
+            avg(e.salary) as avg_salary
+from employees e 
+join departments d using (department_id)
+group by e.department_id, d.department_name
+order by avg_salary desc
+limit 1 offset 1;
+
+
+-- Select the names of employees who have unique salaries and work in the IT department.
+
+select e.name, 
+	 e.salary, 
+	 d.department_name
+from employees e 
+join departments d using (department_id)
+where  d.department_name = 'IT' and
+     	   e.salary in (select salary
+     		 	  from employees 
+ 	  group by salary
+  having count (*) = 1
+);

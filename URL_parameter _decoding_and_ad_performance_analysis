@@ -1,0 +1,63 @@
+-- project: URL parameter decoding and ad performance analysis
+-- goal: decode URL parameters, aggregate ad performance metrics, and calculate key performance indicators (KPIs).
+
+-- task 1: create a function to decode URL-encoded parts
+
+CREATE OR REPLACE FUNCTION pg_temp.decode_url_part(p varchar) RETURNS varchar AS $$
+SELECT
+  convert_from(CAST(E'\\x' || string_agg(CASE WHEN length(r.m[1]) = 1 THEN encode(convert_to(r.m[1], 'SQL_ASCII'), 'hex') ELSE substring(r.m[1] from 2 for 2) END, '') AS bytea), 'UTF8')
+FROM regexp_matches($1, '%[0-9a-f][0-9a-f]|.', 'gi') AS r(m);
+$$ LANGUAGE SQL IMMUTABLE STRICT;
+
+-- task 2: aggregate ad performance metrics and decode URL parameters
+-- this query combines data from facebook and google ads, decodes URL parameters, and calculates key metrics such as CTR, CPC, CPM, and ROMI.
+
+WITH common_table AS (
+    SELECT 
+        ad_date, 
+        url_parameters,
+        COALESCE(spend, 0) AS spend, 
+        COALESCE(impressions, 0) AS impressions,
+        COALESCE(reach, 0) AS reach,
+        COALESCE(clicks, 0) AS clicks,
+        COALESCE(leads, 0) AS leads,
+        COALESCE(value, 0) AS value
+    FROM facebook_ads_basic_daily fabd
+    UNION ALL
+    SELECT 
+        ad_date,
+        url_parameters, 
+        COALESCE(spend, 0) AS spend,
+        COALESCE(impressions, 0) AS impressions,
+        COALESCE(reach, 0) AS reach,
+        COALESCE(clicks, 0) AS clicks,
+        COALESCE(leads, 0) AS leads,
+        COALESCE(value, 0) AS value
+    FROM google_ads_basic_daily gabd
+)
+SELECT 
+    ad_date,
+    CASE 
+        WHEN lower(substring(decode_url_part(url_parameters), 'utm_campaign=([^\&]+)')) = 'nan' THEN NULL
+        ELSE lower(substring(decode_url_part(url_parameters), 'utm_campaign=([^\&]+)'))
+    END AS utm_campaign, -- decoded UTM campaign parameter
+    SUM(spend) AS amt_all_spend,
+    SUM(impressions) AS cnt_imps, 
+    SUM(clicks) AS cnt_clicks,
+    SUM(value) AS income, 
+    CASE 
+        WHEN SUM(impressions) > 0 THEN (SUM(clicks)::numeric / SUM(impressions)::numeric) * 100 
+    END AS CTR, 
+    CASE 
+        WHEN SUM(clicks) > 0 THEN SUM(spend)::numeric / SUM(clicks)::numeric 
+    END AS CPC,
+    CASE 
+        WHEN SUM(impressions) > 0 THEN (SUM(spend)::numeric / SUM(impressions)::numeric) * 1000 
+    END AS CPM,
+    CASE 
+        WHEN SUM(spend) > 0 THEN ((SUM(value)::numeric - SUM(spend)::numeric) / SUM(spend)::numeric) * 100 
+    END AS ROMI
+FROM 
+    common_table
+GROUP BY 
+    ad_date, utm_campaign;

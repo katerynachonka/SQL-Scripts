@@ -1,0 +1,42 @@
+-- project: Facebook Ads Campaign Analysis
+-- task: Analyze spend, impressions, clicks, and income to evaluate campaign performance.
+-- calculations include CPC, CPM, CTR, and ROMI.
+
+-- task 1: calculate key metrics for advertising campaigns by day
+-- the goal is to obtain total spend, impressions, clicks, income, and to calculate CPC, CPM, CTR, and ROMI.
+-- data is aggregated by date and campaign ID, with filters for non-null dates and positive clicks.
+
+SELECT 
+    ad_date,
+    campaign_id, 
+    SUM(spend) AS amt_all_spend,
+    SUM(impressions) AS cnt_imps, 
+    SUM(clicks) AS cnt_clicks, 
+    SUM(value) AS income,
+    SUM(spend)::numeric / SUM(clicks)::numeric AS CPC,
+    (SUM(spend)::numeric / SUM(impressions)::numeric) * 1000 AS CPM, 
+    (SUM(clicks)::numeric / SUM(impressions)::numeric) * 100 AS CTR, 
+    ((SUM(value)::numeric - SUM(spend)::numeric) / SUM(spend)::numeric) * 100 AS ROMI 
+FROM 
+    facebook_ads_basic_daily
+GROUP BY 
+    ad_date, campaign_id
+HAVING 
+    ad_date IS NOT NULL AND SUM(clicks) > 0;
+
+-- Task 2: evaluate ROMI for campaigns with spend over 500,000
+-- the goal is to identify the campaign with the highest ROMI where spend exceeds 500,000.
+-- results are sorted by ROMI in descending order, limited to one campaign.
+
+SELECT 
+    campaign_id, -- Campaign ID
+    ((SUM(value)::numeric - SUM(spend)::numeric) / SUM(spend)::numeric) * 100 AS ROMI -- Return on marketing investment (ROMI)
+FROM 
+    facebook_ads_basic_daily
+GROUP BY 
+    campaign_id
+HAVING 
+    SUM(spend) > 500000
+ORDER BY 
+    ROMI DESC
+LIMIT 1;
